@@ -20,7 +20,7 @@ This R project and script are designed to set up a document database and perform
 
 1. <b>configDB(root, path):</b> This function sets up the folder structure for the database. If the path argument is empty, it creates the "docDB" folder in the project folder; otherwise, it creates the "docDB" folder under the provided path.
 
-2. getTags(fileName): This function returns a vector of tags extracted from the fileName argument. It handles file names with tags in different positions and formats, such as "CampusAtNight.jpg #Northeastern #ISEC" or "CampusAtNight #Northeastern #ISEC.jpg". The function correctly handles file extensions on Windows.
+2. <b>getTags(fileName):</b> This function returns a vector of tags extracted from the fileName argument. It handles file names with tags in different positions and formats, such as "CampusAtNight.jpg #Northeastern #ISEC" or "CampusAtNight #Northeastern #ISEC.jpg". The function correctly handles file extensions on Windows.
 
 3. <b>getFileName(fileName):</b> This function returns the file name portion from the fileName argument. It removes any tags or extensions, returning just the file name.
 
