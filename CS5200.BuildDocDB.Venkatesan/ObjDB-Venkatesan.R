@@ -403,17 +403,22 @@ testStoreObjs <- function (){
 }
 
 
+#' unittest
+#' 
+#' Driver function for unit testing all the components of document database
 unittest(){
   
-  
-  
-  
+
+  # unit test configDB ------------------------------------------------------
   testConfigDB()
-  
+
+  # unit test getFilename ---------------------------------------------------
   testGetFileName()
   
+  # unit test getTags -------------------------------------------------------
   testGetTags()
   
+  # unit test storeObjs -----------------------------------------------------
   testStoreObjs()
   
 }
@@ -422,9 +427,9 @@ main <- function() {
   
   unittest()
   
-  configDB(rootDir , "")
+  #configDB(rootDir , "")
   
-  storeObjs("testData",rootDir,TRUE)
+  #storeObjs("testData",rootDir,TRUE)
   
   #clearDB(rootDir)
   
