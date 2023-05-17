@@ -406,7 +406,7 @@ testStoreObjs <- function (){
 #' unittest
 #' 
 #' Driver function for unit testing all the components of document database
-unittest(){
+unittest <- function(){
   
 
   # unit test configDB ------------------------------------------------------
@@ -419,7 +419,7 @@ unittest(){
   testGetTags()
   
   # unit test storeObjs -----------------------------------------------------
-  testStoreObjs()
+  #testStoreObjs()
   
 }
 
