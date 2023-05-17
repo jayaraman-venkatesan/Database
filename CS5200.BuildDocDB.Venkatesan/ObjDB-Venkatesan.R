@@ -1,3 +1,10 @@
+# R Script Title : Document database
+#
+# Description: This script performs basic operation for a document database
+#
+# Author: Jayaraman Venkatesan
+# Date: 2023-05-17
+
 
 rootDir <- "docDB"
 rootPath <- ""
@@ -25,6 +32,9 @@ configDB <- function(root, path = "") {
   
 
   if (path != "") {
+    if(!dir.exists(path)){
+      stop("[ERROR]Given path is not present")
+    }
     path_dir <- file.path(path, root)
     if (!dir.exists(path_dir)) {
       dir.create(path_dir)
@@ -60,10 +70,34 @@ getExtn<- function (fileName){
   
   file_ext = tools::file_ext(fileName)
   
+  print("a")
+  print(fileName)
+  print(file_ext)
+  print("b")
+  
   return(paste0(".",file_ext))
   
 }
 
+#' getFileName
+#' 
+#' Extracts and returns fileName from the filenames with tags
+#'
+#' @param fileName filenames containing tags associated with them
+#'
+#' @return filename without tags
+#' 
+#' @examples
+#' #getFileName(test #abc #def.jpg) returns test.jpg
+getFileName<- function(fileName){
+  fileName <- trimws(fileName)
+  
+  # Remove hashtags and their subsequent content
+  fileName <- gsub(" #.*?(?=\\.[^.]*$)| #.*$", "", fileName, perl = TRUE)
+  
+  # Remove leading/trailing spaces resulting from the removal of hashtags
+  fileName <- trimws(fileName)
+}
 
 #' getTags
 #' 
@@ -80,53 +114,18 @@ getExtn<- function (fileName){
 #' 
 getTags <- function(fileName) {
   # Find tags in the file name
-  
-  
- file_ext = getExtn(fileName);
+ processed_filename = tools::file_path_sans_ext(basename(fileName))
  
-
- 
- if(file_ext == ""){
-   stop(sprintf("[ERROR] file has unsupported extension %s\n",fileName))
- } 
- 
- processed_filename = gsub(file_ext,"",fileName)
  tags <- unlist(strsplit(processed_filename, " "))[-1]
  
  return_v <- unlist(lapply(tags, trimws))
+  
+
  
- 
- return(return_v)
+ return(unique(return_v))
 
 }
 
-
-#' getFileName
-#' 
-#' Extracts and returns fileName from the filenames with tags
-#'
-#' @param fileName filenames containing tags associated with them
-#'
-#' @return filename without tags
-#' 
-#' @examples
-#' #getFileName(test #abc #def.jpg) returns test.jpg
-getFileName <- function(fileName) {
-  
-  file_ext = getExtn(fileName);
-
-  if(file_ext == ""){
-    stop(sprintf("[ERROR] file has unsupported extension %s\n",fileName))
-  } 
-  
-  processed_filename = gsub(file_ext,"",fileName)
-  fileName <- unlist(strsplit(processed_filename, " "))[1]
-  
-  trimmed_filename = gsub("^\\s+", "", fileName)
-  
-  return( paste0(trimmed_filename , file_ext))
-  
-}
 
 
 #' genObjPath
@@ -186,7 +185,6 @@ storeObjs<- function (folder, root , verbose = FALSE){
   for(file_name in file_list){
     file_path = file.path(folder,file_name)
     
-    
     tags <- getTags(file_name)
     
     verbose_message(sprintf("Copying %s to %s \n",getFileName(file_name),toString(tags)))
@@ -231,7 +229,6 @@ clearDB <- function (root){
       unlink(subdir, recursive = TRUE)
     }
  
-    
   } else {
     list_of_files = list.dirs(rootDir)[-1]
     print(list_of_files)
@@ -239,28 +236,199 @@ clearDB <- function (root){
       print(subdir)
       unlink(subdir, recursive = TRUE)
     }
-    
   }
+  
+}
+
+#' testConfigDB
+#' 
+#' Performs manual unit testing on configDB function
+#'
+testConfigDB <- function(){
+  
+  print("-- Testing configDB()")
+  # valid scenario 1 - path empty
+  configDB(rootDir,"")
+  if(!dir.exists(rootDir)){
+    print("[FAILED] test case 1/3")
+  } else {
+    print("[PASSED] test case 1/3")
+  }
+  
+  
+  # valid scenario 2 - path present
+  curr_dir = getwd();
+  input = file.path(curr_dir)
+  
+  result <- tryCatch(
+    {
+      configDB(rootDir, input)
+      print("[PASSED] test case 2/3")
+    }, 
+    error = function(e) {
+      # Assert that the error message matches our expectation
+      print("[FAILED] test case 2/3")
+    }
+  )
+  
+  # invalid scenario - path not present
+  curr_dir = getwd();
+  input = file.path(curr_dir,"test-case1")
+
+  
+  result <- tryCatch(
+    {
+      configDB(rootDir, input)
+      print("[FAILED] test case 3/3")
+    }, 
+    error = function(e) {
+      # Assert that the error message matches our expectation
+      print("[PASSES] test case 3/3")
+    }
+  )
+  
+}
+
+
+#' testGetFileName
+#' 
+#' Performs manual unit testing for getFileName function
+#'
+testGetFileName <- function (){
+  
+  print("-- Testing getFileName()")
+  
+  # Test case 1:hashtags at the end
+  result <- getFileName("CampusAtNight.jpg #Northeastern #ISEC")
+  # Expected: "CampusAtNight.jpg"
+  stopifnot(result == "CampusAtNight.jpg")
+  
+  print("[PASSED] test case 1/4")
+  
+  
+  # Test case 2: hashtags in the middle
+  result <- getFileName("CampusAtNight #Northeastern #ISEC.jpg")
+  # Expected: "CampusAtNight.jpg"
+ stopifnot(result == "CampusAtNight.jpg")
+ 
+ print("[PASSED] test case 2/4")
+ 
+  
+  # Test case 3: No hashtags
+  result <- getFileName("CampusAtNight.jpg")
+  # Expected: "CampusAtNight.jpg"
+  stopifnot(result == "CampusAtNight.jpg")
+  
+  print("[PASSED] test case 3/4")
+  
+  
+  # Test case 4: File name with leading/trailing spaces and multiple hashtags
+  result <- getFileName("  Image 1.jpg  #Nature #Scenery  ")
+  # Expected: "Image 1.jpg"
+  stopifnot(result == "Image 1.jpg")
+  
+  print("[PASSED] test case 4/4")
+  
+}
+
+
+
+#' testGetTags
+#' 
+#' Performs manual unit testing for getTags function
+testGetTags <- function (){
+  
+  print("-- Testing getTags()")
+  # tests for extensions at the middle
+  # 2 tags
+  result <- getTags("CampusAtNight.jpg #Northeastern #ISEC")
+  stopifnot(toString(result) == "#Northeastern, #ISEC")
+  
+  print("[PASSED] test case 1/8")
+  
+  # 1 tag
+  result <- getTags("CampusAtNight.jpg #ISEC")
+  stopifnot(toString(result) == "#ISEC")
+  
+  print("[PASSED] test case 2/8")
+  
+  # no tag
+  result <- getTags("CampusAtNight.jpg")
+  stopifnot(toString(result) == "")
+  
+  print("[PASSED] test case 3/8")
+  
+  #duplicate tags
+  result <- getTags("CampusAtNight.jpg #Northeastern #Northeastern")
+  stopifnot(toString(result) == "#Northeastern")
+  
+  print("[PASSED] test case 4/8")
+  
+  # tests for extentions at the end
+  # 2 tags
+  result <- getTags("CampusAtNight #Northeastern #ISEC.jpg")
+  stopifnot(toString(result) == "#Northeastern, #ISEC")
+  
+  print("[PASSED] test case 5/8")
+  
+  # 1 tag
+  result <- getTags("CampusAtNight #ISEC.jpg")
+  stopifnot(toString(result) == "#ISEC")
+  
+  print("[PASSED] test case 6/8")
+  
+  # no tag
+  result <- getTags("CampusAtNight.jpg")
+  stopifnot(toString(result) == "")
+  
+  print("[PASSED] test case 7/8")
+  
+  #duplicate tags
+  result <- getTags("CampusAtNight #Northeastern #Northeastern.jpg")
+  stopifnot(toString(result) == "#Northeastern")
+  
+  print("[PASSED] test case 8/8")
+  
+}
+
+
+
+#' testStoreObjs
+#' 
+#' Performs manual unit testing for storeObjs function
+testStoreObjs <- function (){
   
   
   
 }
 
-main <- function()
+
+unittest(){
   
-{
+  
+  
+  
+  testConfigDB()
+  
+  testGetFileName()
+  
+  testGetTags()
+  
+  testStoreObjs()
+  
+}
+
+main <- function() {
+  
+  unittest()
   
   configDB(rootDir , "")
   
   storeObjs("testData",rootDir,TRUE)
   
- #clearDB(rootDir)
+  #clearDB(rootDir)
   
 }
-
-
-
-
 
 main()
 
