@@ -5,19 +5,22 @@
 # Author: Jayaraman Venkatesan
 # Date: 2023-05-17
 
-
 rootDir <- "docDB"
-rootPath <- ""
 
 verbose <- FALSE;
 
+#' Verbose message generator
+#' 
+#' Generate and prints verbose messages if the verbose flag is true
+#'
+#' @param msg message to be printed if the verbose tag is true
 verbose_message <- function(msg) {
   if (verbose) {
     message(msg)
   }
 }
 
-#' ConfigDB
+#' Configure Database
 #' 
 #' Configure initial folders for document database
 #'
@@ -33,14 +36,13 @@ configDB <- function(root, path = "") {
 
   if (path != "") {
     if(!dir.exists(path)){
-      stop("[ERROR]Given path is not present")
+      stop("[ERROR] Invalid argument - Given path is not present")
     }
     path_dir <- file.path(path, root)
     if (!dir.exists(path_dir)) {
       dir.create(path_dir)
     }
     
-    rootPath <<- path
   } else {
     if(!dir.exists(root)){
       dir.create(root)
@@ -50,36 +52,7 @@ configDB <- function(root, path = "") {
 }
 
 
-
-#' getExtn
-#' 
-#' Finds the extension of a file or returns empty string if not found
-#'
-#' @param fileName name of the file to get extension from
-#'
-#' @return extention of the file
-#'
-#' @examples
-#' 
-#' getExtn(test.jpg) returns jpg
-#' getExtn(test.abc) returns ""
-getExtn<- function (fileName){
-  
-  
-  file_ext = "";  
-  
-  file_ext = tools::file_ext(fileName)
-  
-  print("a")
-  print(fileName)
-  print(file_ext)
-  print("b")
-  
-  return(paste0(".",file_ext))
-  
-}
-
-#' getFileName
+#' Get Filename
 #' 
 #' Extracts and returns fileName from the filenames with tags
 #'
@@ -99,7 +72,7 @@ getFileName<- function(fileName){
   fileName <- trimws(fileName)
 }
 
-#' getTags
+#' Get Tags
 #' 
 #' Finds the tags from file name and returns the tags as vector
 #'
@@ -128,7 +101,7 @@ getTags <- function(fileName) {
 
 
 
-#' genObjPath
+#' Generate Object Path
 #' 
 #' Generates destination path of where the tagged file should be stored 
 #'
@@ -140,23 +113,22 @@ getTags <- function(fileName) {
 #'
 #' @examples
 #' genObjPath(rootDir,test) 
-#' 
 genObjPath <- function (root, tag){
-  tag<- gsub("#","",tag)
   
-  if(rootPath != ""){
-    objPath = file.path(rootPath,root,tag)
-    return(objPath)
-  } else {
+  objPath <- ""
+  
+  if(tag!=""){
+    tag<- gsub("#","",tag)
+    
     objPath = file.path(root,tag)
-    return(objPath)
   }
+ 
   
+  return(objPath)
 } 
 
 
-
-#' storeObjs
+#' Store objects to DB
 #' 
 #' Copies all files in the specified in the folder argument to their correct 
 #' folders underneath the root folder speficied to the tags associated with 
@@ -167,13 +139,15 @@ genObjPath <- function (root, tag){
 #' @param verbose modify the code for the function so that it prints a message
 #'  for every file that is copied
 #'
-#' @return
-#' @export
-#'
 #' @examples
+#' storeObjs("/a/b","/a/c",false) will store files with tags from /a/b to /a/c
 storeObjs<- function (folder, root , verbose = FALSE){
   if(!dir.exists(folder)){
-    stop(sprintf("[ERROR] Input folder does not exists %s",folder))
+    stop(sprintf("[ERROR] Invalid argument - folder does not exists %s",folder))
+  }
+  
+  if(!dir.exists(root)){
+    stop(sprintf("[ERROR] Invalid argument - root does not exists %s",root))
   }
   
   if(verbose){
@@ -191,13 +165,16 @@ storeObjs<- function (folder, root , verbose = FALSE){
     
     for( tag in tags ){
       dest_dir <- genObjPath(root,tag)
-      if(!dir.exists(dest_dir)){
-        dir.create(dest_dir)
+      if(dest_dir != ""){
+        if(!dir.exists(dest_dir)){
+          dir.create(dest_dir)
+        }
+        
+        dest_path <- file.path(dest_dir , getFileName(file_name))
+        
+        file.copy(file_path , dest_path)
       }
       
-      dest_path <- file.path(dest_dir , getFileName(file_name))
-      
-      file.copy(file_path , dest_path)
     }
     
   }
@@ -206,7 +183,7 @@ storeObjs<- function (folder, root , verbose = FALSE){
 }
 
 
-#' clearDB
+#' Clear database
 #' 
 #' removes all folders and files in the folder specified by root but not the 
 #' folder for root itself
@@ -219,31 +196,28 @@ storeObjs<- function (folder, root , verbose = FALSE){
 #' @examples
 clearDB <- function (root){
   
-  if(rootPath!=""){
-    
-    list_of_files = list.dirs(file.path(rootPath,rootDir))[-1]
-    print(list_of_files)
-    
-    for (subdir in list_of_files) {
-      print(subdir)
-      unlink(subdir, recursive = TRUE)
-    }
- 
-  } else {
-    list_of_files = list.dirs(rootDir)[-1]
-    print(list_of_files)
-    for (subdir in list_of_files) {
-      print(subdir)
-      unlink(subdir, recursive = TRUE)
-    }
+  if(!dir.exists(root)){
+    stop("[ERROR] invalid argument root - path doesnt exist %s",root)
   }
+  
+  if(root != ""){
+    
+    list_of_files = list.dirs(file.path(root))[-1]
+   
+    
+    for (subdir in list_of_files) {
+      
+      unlink(subdir, recursive = TRUE)
+    }
+    
+  }
+  
   
 }
 
-#' testConfigDB
+#' Unit Test for configDB function 
 #' 
-#' Performs manual unit testing on configDB function
-#'
+#' Contains unit test cases to validate the working of function to connfigure DB
 testConfigDB <- function(){
   
   print("-- Testing configDB()")
@@ -290,10 +264,9 @@ testConfigDB <- function(){
 }
 
 
-#' testGetFileName
+#' Unit Test for getFileName function 
 #' 
-#' Performs manual unit testing for getFileName function
-#'
+#' Contains unit test cases to validate the working of getFileName function
 testGetFileName <- function (){
   
   print("-- Testing getFileName()")
@@ -333,9 +306,9 @@ testGetFileName <- function (){
 
 
 
-#' testGetTags
+#' Unit Test for getTags function 
 #' 
-#' Performs manual unit testing for getTags function
+#' Contains unit test cases to validate the working of getTags function
 testGetTags <- function (){
   
   print("-- Testing getTags()")
@@ -393,12 +366,122 @@ testGetTags <- function (){
 
 
 
-#' testStoreObjs
+#' Unit Test for storeObjs function 
 #' 
-#' Performs manual unit testing for storeObjs function
+#' Contains unit test cases to validate the working of storeObjs function
 testStoreObjs <- function (){
   
+  print("--- Testing storeObjs()")
   
+  # give a valid test data path for folder argument of storeObjs function
+  folder <- "testData"
+  root <- "docDB"
+
+  # enter proper testcases folder, root folder to store
+  storeObjs(folder,root,FALSE)
+  
+
+  # list files in test folder
+  files <- list.files(folder);
+  
+  for(file in files){
+    tags <- getTags(file.path(folder,file))
+    fileName <- getFileName(file)
+    
+    for(tag in tags){
+      path <- genObjPath(root,tag)
+     
+      if(!file.exists(file.path(path,fileName))){
+        
+       
+        print("[FAILED] testcase - file not stored in proper location")
+      } 
+    }
+    
+    
+    
+    
+  }
+  print("[PASSED] test case 1 - check if valid files are present")
+  
+  #test case 2 - invalid test folder
+  
+  #invalid value for folder argument of storeObjs()
+  folder <- "/v/j/vj/jv"
+  
+  result <- tryCatch(
+    {
+      storeObjs(folder, rootDir, FALSE)
+      print("[FAILED] test case 2 - working with invalid folder path")
+    }, 
+    error = function(e) {
+      print("[PASSED]  test case 2")
+    }
+  )
+  
+}
+
+
+#' Unit Test for genObjPath function 
+#' 
+#' Contains unit test cases to validate the working of genObjPath function
+testGenObjPath <- function (){
+  
+  print("-- Testing genObjPath")
+  
+  #path with tag
+  
+  root = "/a/b"
+  tag = "#a"
+    
+  path = genObjPath(root,tag)
+  stopifnot("/a/b/a" == path)
+  print("[PASSED] test case 1/2")
+  
+  #path without tag
+  
+  root = "/a/b"
+  tag = ""
+  
+  path = genObjPath(root,tag)
+  stopifnot("" == path)
+  print("[PASSED] test case 2/2")
+  
+  
+  
+}
+
+
+
+
+#' Unit Test for clearDB 
+#' 
+#' Contains unit test cases to validate the working of clearBD function
+testClearDB <- function (){
+  
+  print("--- Test clear DB")
+  
+  #test clear valid path
+  #change rootDir to location of docDB
+  clearDB(rootDir)
+  
+  dir_list = list.dirs(rootDir)
+  
+  stopifnot(length(dir_list) == 1)
+  
+  print("[PASSED] test vase 1/2")
+  
+  
+  #clear invalid path
+  result <- tryCatch(
+    {
+      clearDB("")
+      print("[FAILED] test case 2 - working with invalid folder path")
+    }, 
+    error = function(e) {
+      print("[PASSED]  test case 2/2")
+    }
+  )
   
 }
 
@@ -418,8 +501,14 @@ unittest <- function(){
   # unit test getTags -------------------------------------------------------
   testGetTags()
   
+  # unit test genObjPath -------------------------------------------------------
+  testGenObjPath()
+  
   # unit test storeObjs -----------------------------------------------------
-  #testStoreObjs()
+  testStoreObjs()
+  
+  # unit test clearDB -----------------------------------------------------
+  testClearDB()
   
 }
 
@@ -427,11 +516,28 @@ main <- function() {
   
   unittest()
   
-  #configDB(rootDir , "")
   
-  #storeObjs("testData",rootDir,TRUE)
+  configDB(rootDir , "/Users/jayaramanvenkatesan/Desktop")
   
-  #clearDB(rootDir)
+  
+  # Modify root to the location of docDB.If config called on path=""root="docDB"
+  #Else specify appropriate path for docDB eg: /tmp/docDB
+  root <- "/Users/jayaramanvenkatesan/Desktop/docDB"
+  
+  result <- tryCatch(
+   storeObjs("/Users/jayaramanvenkatesan/Documents/testData",root,TRUE),
+    
+    error = function (e){
+      print("Store objs exeception - check file path")
+    }
+    
+  )
+  
+  
+  # specify the "LOCATION" of the folder in which we should clear the contents
+  #eg : "docDB" , "/Users/abc/temp/docDB"
+  folder <- "/Users/jayaramanvenkatesan/Desktop/docDB"
+  clearDB(folder)
   
 }
 
