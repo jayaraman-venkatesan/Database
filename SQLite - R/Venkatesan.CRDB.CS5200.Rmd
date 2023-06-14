@@ -1,0 +1,227 @@
+---
+title: "Implementing SQLite Relational Database"
+output: html_notebook
+---
+
+## Setup
+
+Creating a connection variable to the SQlite databse to perform all the CRUD operation
+
+
+```{r}
+library(RSQLite)
+
+#provide path to database folder
+fpath = "database"
+
+#provied path to database file
+
+dbfile = "testdb.sqlite"
+
+dbcon <- dbConnect(RSQLite :: SQLite() , paste0(fpath,dbfile))
+```
+
+
+## creating tables
+
+Creating main tables and junction tables to remove many to many dependencies
+
+### creating visit table
+
+This table tracks  id, number of guests, date and time with vid being primary 
+key and a foreign key reference to Visit_Guest table
+
+
+```{sql connection = dbcon}
+
+
+CREATE TABLE Visit (
+vid Number not null PRIMARY KEY,
+numGuests Integer ,
+date Date,
+times TIME
+);
+
+
+
+
+```
+
+
+### creating Guest table
+
+This table tracks  id, name, credit card number, expiration date and ccv number
+with gid being primary  key and a foreign key reference to Visit_Guest table
+
+
+```{sql connection = dbcon}
+
+
+
+CREATE TABLE Guest (
+gid Text not null PRIMARY KEY,
+name Text,
+creditcard Number,
+expirationdate Date,
+CCV Number
+);
+
+
+```
+
+
+### creating Visit_Guest table
+
+Creating this table to remove the many to many dependency between 
+visit and guest table having gid and vid as foreign key reference
+
+```{sql connection = dbcon}
+CREATE TABLE Visit_Guest (
+vgid Number not null PRIMARY KEY,
+vid number,
+gid Text,
+
+FOREIGN KEY (vid) REFERENCES Visit(vid),
+FOREIGN KEY (gid) REFERENCES Guest(gid)
+
+);
+
+
+```
+
+## Check information on tables
+
+These scripts are used to identify and check the creation of tables
+
+### table info - Visit
+
+```{sql connection = dbcon}
+
+PRAGMA table_info(Visit_Guest);
+
+```
+
+### table info - Guest
+
+```{sql connection = dbcon}
+
+PRAGMA table_info(Visit_Guest);
+
+```
+
+### table info - Visit_Guest
+
+```{sql connection = dbcon}
+
+PRAGMA table_info(Visit_Guest);
+
+```
+
+
+## Foreign key constraints 
+
+This is used to enable foreign key constraints 
+
+```{sql connection = dbcon}
+
+PRAGMA foreign_keys = ON;
+
+```
+
+
+## Inserting dummy datas
+
+Use these scripts to insert dummy data to created tables
+
+
+### Inserting into Visit table
+
+```{sql connection = dbcon}
+
+INSERT INTO Visit (vid, numGuests, date, times)
+VALUES
+    (1, 4, '2023-06-05', '12:30:00'),
+    (2, 2, '2023-06-06', '10:00:00'),
+    (3, 3, '2023-06-07', '15:45:00'),
+    (4, 1, '2023-06-08', '09:15:00'),
+    (5, 5, '2023-06-09', '14:00:00');
+    
+    
+```
+
+
+### Inserting into Guest table
+
+```{sql connection = dbcon}
+
+INSERT INTO Guest (gid, name, creditcard, expirationdate, CCV)
+VALUES 
+    ('G001', 'John Doe', '1234567890123456', '2023-12-31', 123),
+    ('G002', 'Jane Smith', '9876543210987654', '2024-06-30', 456),
+    ('G003', 'Michael Johnson', '5555222233334444', '2023-10-15', 789),
+    ('G004', 'Emily Davis', '1111222233334444', '2024-02-28', 567),
+    ('G005', 'David Wilson', '9999888877776666', '2023-09-30', 321);
+
+    
+```
+
+
+
+### Inserting into Visit_Guest table
+
+```{sql connection = dbcon}
+
+INSERT INTO Visit_Guest (vgid, vid, gid) VALUES 
+ (1, 1, 'G001'),
+ (2, 3, 'G002'),
+ (3, 2, 'G003'),
+ (4, 1, 'G002'),
+ (5, 4, 'G005');
+    
+    
+```
+
+
+## Drop tables
+
+Use these scripts to drop unwanted tables
+
+### Drop Visit
+
+```{sql connection = dbcon}
+
+drop table Visit_Guest
+
+
+```
+### Drop Guest
+
+```{sql connection = dbcon}
+
+drop table Guest
+
+
+```
+
+### Drop Visit_Guest
+```{sql connection = dbcon}
+
+drop table Visit_Guest
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
