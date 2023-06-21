@@ -1,13 +1,14 @@
 
 ## CS5200 - Database Management Systems
 
-### Assignment : Quering tables in SQLite and R
+### Assignment : Building Triggers
 
 
-This assignment involves quering for relational database with schema defined by the crowfoot diagram in the repo.
-
+This assignment involves demonstrating that trigger functions and constraints work properly.
 
 ### Implementations
 - The database tables and mock values are stored in database file "MediaDB.db" in the repo
 
-- Querying table logics are implemented with sql chunks and r chunks in r notebooks
+- Created a new column in a table to track total of invoice items
+
+- Created after insert, update and delete TRIGGERS on the table such that derived attributes are maintained properly

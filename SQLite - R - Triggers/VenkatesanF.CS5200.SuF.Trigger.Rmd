@@ -1,0 +1,156 @@
+---
+title: "Build Triggers"
+author : "Venkatesan, Jayaraman" 
+date : "Summer Full 2023"
+output: html_notebook
+---
+
+## Setup
+
+Creating a connection variable to the SQlite databse to perform all the required
+operations
+
+```{r}
+library(RSQLite)
+
+#provide path to database folder
+
+fpath = 
+
+#provied path to database file
+
+dbfile = "/Users/jayaramanvenkatesan/Desktop/CS5200/SQLite - R - Triggers/MediaDB.db"
+
+dbcon <- dbConnect(RSQLite :: SQLite() , dbfile)
+
+#tables <- dbListTables(dbcon)
+
+# Print the table names
+#print(tables)
+
+
+```
+
+
+## Step 1 :
+Creating a column "total_new" in "invoices" table to store the total values
+
+ASSUMPTION : DEFAULT IS 0 (ZERO)
+
+Adding check constraint to the column to be always positive
+
+```{sql connection = dbcon}
+ALTER TABLE invoices
+ADD total_new  DECIMAL(20, 2) CHECK (total_new >= 0) DEFAULT 0 ;
+```
+
+
+## TRIGGER ASSUMPTION : 
+- Initially total will be 0 for all the columns
+- Only new updates inserts and deletes are captured in triggers and will be 
+changed
+
+## Step 2 :
+
+Adding after insert trigger on InvoiceItems tables to update total_new column in 
+invoices when a new row gets inserted in InvoiceItems
+```{sql connection = dbcon}
+CREATE TRIGGER IF NOT EXISTS  InvoiceItemInsert
+AFTER INSERT ON invoice_items
+FOR EACH ROW
+BEGIN
+    UPDATE invoices
+    SET total_new = total_new + (NEW.UnitPrice * NEW.Quantity)
+    WHERE InvoiceId = NEW.InvoiceId;
+END
+```
+
+
+## Step 3 :
+
+Adding after update trigger on InvoiceItems tables to update total_new column in 
+invoices when a new row gets updated in InvoiceItems
+Intuition : 
+- Remove old values imapct
+- Insert new values impact
+```{sql connection = dbcon}
+CREATE TRIGGER IF NOT EXISTS  InvoiceItemUpdate
+AFTER UPDATE ON invoice_items
+FOR EACH ROW
+BEGIN
+
+    UPDATE invoices
+    SET total_new = total_new - (OLD.UnitPrice * OLD.Quantity)
+    WHERE InvoiceId = OLD.InvoiceId;
+    
+    UPDATE invoices
+    SET total_new = total_new + (NEW.UnitPrice * NEW.Quantity)
+    WHERE InvoiceId = NEW.InvoiceId;
+    
+END;
+```
+
+
+## Step 4 :
+
+Adding after delete trigger on InvoiceItems tables to update total_new column in 
+invoices when a new row gets deleted in InvoiceItems
+- Remove the impact of old values of unit price and quantity from the table
+```{sql connection = dbcon}
+CREATE TRIGGER IF NOT EXISTS  InvoiceItemDelete
+AFTER DELETE ON invoice_items
+FOR EACH ROW
+BEGIN
+    UPDATE invoices
+    SET total_new = total_new - (OLD.UnitPrice * OLD.Quantity)
+    WHERE InvoiceId = OLD.InvoiceId;
+END;
+```
+
+
+## Step 5 - TESTING CONSTRAINT :
+
+Checking the constraint set on total_new column to not contain negative values
+```{sql connection = dbcon}
+UPDATE invoices SET total_new= -5 WHERE InvoiceId = 2
+```
+
+
+## Step 5 - TESTING Triggers :
+
+### AFTER INSERT TEST : 
+
+Check if after insert triggers are working properly
+```{sql connection = dbcon}
+INSERT INTO invoice_items (InvoiceLineId, InvoiceId, TrackId, UnitPrice, Quantity)
+VALUES (5555555, 1, 8, 1, 2);
+```
+
+check if total is 2
+```{sql connection = dbcon}
+Select total_new FROM invoices WHERE InvoiceId = 1;
+```
+
+
+### AFTER UPDATE TEST : 
+Check if after update triggers are working properly
+```{sql connection = dbcon}
+Update  invoice_items SET UnitPrice = 10 , Quantity = 20 where InvoiceLineId = 5555555;
+```
+
+check if total is 200
+```{sql connection = dbcon}
+Select total_new FROM invoices WHERE InvoiceId = 1;
+```
+
+
+### AFTER DELETE TEST : 
+Check if after update triggers are working properly
+```{sql connection = dbcon}
+DELETE FROM invoice_items WHERE InvoiceLineId = 5555555;
+```
+
+check if total is 0
+```{sql connection = dbcon}
+Select total_new FROM invoices WHERE InvoiceId = 1;
+```

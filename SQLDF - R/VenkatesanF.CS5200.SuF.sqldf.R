@@ -27,9 +27,8 @@ merged_df <- rbind(df1, df2, df3)
 merged_df$amount <- gsub("\\$", "", merged_df$amount)
 
 
-# Assumption : Summing only the guest considering it includes the actual person
 
-result <- sqldf("Select restaurant , SUM(amount) , SUM(guests) from merged_df group by restaurant")
+result <- sqldf("Select restaurant , SUM(amount) , COUNT(*) from merged_df group by restaurant")
 
 
 # Presenting the result with Kable 
