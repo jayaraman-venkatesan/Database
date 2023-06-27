@@ -1,0 +1,383 @@
+---
+title: "Practicum I CS5200"
+author : "Venkatesan, Jayaraman" 
+date : "Summer Full 2023"
+output: html_notebook
+---
+
+
+## Connect to Database
+
+```{r connectDB, eval = T, warning = F}
+library(RMySQL)
+
+
+# 2. Settings
+db_user <- 'thisispracticum'
+db_password <- 'thisispracticum'
+db_name <- 'practicum'
+db_host <- 'practicum1.c0lvnnjxlfni.us-east-1.rds.amazonaws.com' # for local access
+db_port <- 3306
+
+# 3. Read data from db
+mydb <-  dbConnect(MySQL(), user = db_user, password = db_password,
+                 dbname = db_name, host = db_host, port = db_port)
+
+dbListTables(mydb)
+
+```
+
+## Create Database
+
+```{sql createAirportTable, connection = mydb}
+
+CREATE TABLE airports (
+  aid INTEGER PRIMARY KEY,
+  airportState TEXT,
+  airportCode TEXT
+);
+
+```
+
+```{sql createFlightTable, connection = mydb}
+CREATE TABLE flights (
+  fid INTEGER PRIMARY KEY,
+  date DATE,
+  origin INTEGER,
+  airline TEXT,
+  aircraft TEXT,
+  altitude INTEGER CHECK (altitude => 0),
+  heavy BOOLEAN,
+  FOREIGN KEY (origin) REFERENCES airports(aid)
+);
+```
+
+```{sql createConditionsTable, connection = mydb}
+CREATE TABLE conditions (
+  cid INTEGER PRIMARY KEY,
+  sky_condition TEXT,
+  explanation TEXT
+);
+```
+
+```{sql createStrikesTable, connection = mydb}
+CREATE TABLE strikes (
+  sid INTEGER PRIMARY KEY,
+  fid INTEGER ,
+  numbirds INTEGER,
+  impact TEXT,
+  damage BOOLEAN,
+  altitude INTEGER CHECK (altitude >= 0),
+  conditions INTEGER,
+  FOREIGN KEY (conditions) REFERENCES conditions(cid)
+);
+```
+
+
+```{sql connectStrikesFlightTable, connection = mydb}
+ALTER TABLE strikes
+ADD CONSTRAINT fk_strikes_flights
+FOREIGN KEY (fid) REFERENCES flights(fid);
+```
+
+```{r evaluateTables, eval = F, warning = F}
+
+tables <- dbListTables(mydb)
+expectedTables <- c('airports', 'flights', 'conditions', 'strikes')
+
+# Check if all the expected tables exist
+allExist <- all(expectedTables %in% tables)
+
+# Check if any unexpected tables exist
+unexpectedTables <- setdiff(tables, expectedTables)
+
+cat("All expected tables exist:", allExist, "\n")
+
+if (length(unexpectedTables) > 0) {
+  cat("Unexpected tables found:\n")
+} else {
+  cat("No unexpected tables found.")
+}
+
+```
+
+
+
+## Loading CSV 
+```{r loadCSV, eval=TRUE , warning=FALSE}
+bds.raw <- read.csv("BirdStrikesData-V2.csv")
+```
+
+
+## Populating tables
+
+### airports table
+
+```{r populateAirportTable, eval=T, warning=FALSE}
+
+temp1 <- bds.raw[!duplicated(bds.raw[c('origin')]),]
+
+airports <- data.frame(aid = seq(1,length(temp1$origin)),
+                          airportCode = "",
+                          airportState = temp1$origin)
+
+
+dbWriteTable(mydb, "airports", airports, append = T,row.names=FALSE)
+```
+
+
+### populating conditions table
+
+```{r populateConditionsTable, eval=T, warning=FALSE}
+
+temp2 <- bds.raw[!duplicated(bds.raw[c('sky_conditions')]),]
+
+
+
+conditions <- data.frame(cid = seq(1,length(temp2$sky_conditions)),
+                          sky_condition = temp2$sky_conditions,
+                          explanation = "" )
+
+
+dbWriteTable(mydb, "conditions", conditions, append = T,row.names=FALSE)
+
+
+
+
+```
+
+### populating flights table
+
+```{r populateFlightsTable, eval=T, warning=FALSE}
+
+temp3 <- bds.raw[c('flight_date' , 'airline' , 'aircraft' , 'altitude_ft', 'heavy_flag' , 'origin')]
+
+
+
+
+
+flights <- data.frame(fid = seq(1,length(temp3$origin)) ,
+                      date = as.Date(temp3$flight_date , "%m/%d/%Y"),
+                      origin = temp3$origin,
+                      airline = temp3$airline,
+                      aircraft = temp3$aircraft,
+                      altitude = temp3$altitude_ft,
+                      heavy = temp3$heavy_flag
+                      )
+
+
+rangex = 1:nrow(flights)
+
+for (r in rangex) {
+  a <- airports$aid[which(airports$airportState == flights$origin[r])]
+  
+  flights$origin[r] <-  strtoi(a)
+
+}
+
+
+flights$airline = ifelse(flights$airline=="","unknown",flights$airline)
+flights$aircraft = ifelse(flights$aircraft=="","unknown",flights$aircraft)
+
+flights$altitude <- as.numeric(gsub(",", "", flights$altitude))
+
+
+flights$heavy = ifelse(flights$heavy=="No",0,flights$heavy)
+flights$heavy = ifelse(flights$heavy=="Yes",1,flights$heavy)
+
+
+
+dbWriteTable(mydb, "flights", flights, append = T,row.names=FALSE)
+```
+
+### populating strikes table
+```{r populateStrikesTable , eval=T }
+
+temp4 <- bds.raw[c('impact' , 'damage', 'altitude_ft', 'wildlife_struck' , 'airline' , 'aircraft' , 'heavy_flag' , 'origin','sky_conditions' , 'flight_date')]
+
+strike_range = 1:nrow(temp4)
+
+temp4$altitude_ft <- as.numeric(gsub(",", "", temp4$altitude_ft))
+
+temp4$heavy_flag = ifelse(temp4$heavy_flag=="No",0,temp4$heavy_flag)
+temp4$heavy_flag = ifelse(temp4$heavy_flag=="Yes",1,temp4$heavy_flag)
+
+temp4$flight_date <- as.Date(temp4$flight_date , "%m/%d/%Y")
+
+
+temp4$airline = ifelse(temp4$airline=="","unknown",temp4$airline)
+temp4$aircraft = ifelse(temp4$aircraft=="","unknown",temp4$aircraft)
+
+temp4$damage = ifelse(temp4$damage=="No damage",0,temp4$damage)
+temp4$damage = ifelse(temp4$damage=="Caused damage",1,temp4$damage)
+
+
+
+temp4$fid <- vector("numeric", nrow(temp4))
+
+temp4$fid <- 0
+
+for (sr in strike_range) {
+
+  # update sky_conditions with foreign key
+  c <- conditions$cid[which(conditions$sky_condition == temp4$sky_conditions[sr])]
+  
+  temp4$sky_conditions[sr] <-  strtoi(c)
+  
+  #update origin
+   o <- airports$aid[which(airports$airportState == temp4$origin[sr])]
+  
+  temp4$origin[sr] <-  strtoi(o)
+  
+  #update flight ids
+  
+  fid <- -1
+  
+  if (anyNA(temp4$flight_date[sr] , temp4$altitude_ft )) {
+    # Perform the comparison
+    fid <- flights$fid[which(flights$aircraft == temp4$aircraft[sr] & 
+                               flights$airline == temp4$airline[sr] &
+                               flights$origin == temp4$origin[sr] 
+                             )]
+    
+    
+  } else {
+     fid <- flights$fid[which(flights$aircraft == temp4$aircraft[sr] & 
+                             flights$airline == temp4$airline[sr] &
+                             flights$origin == temp4$origin[sr] &
+                            
+                             flights$date == temp4$flight_date[sr] &
+                             
+                             flights$altitude == temp4$altitude_ft[sr]
+                           )]
+     
+   
+  }
+  
+  if (length(fid) > 0) {
+  fid <- min(fid)
+  } 
+  
+  temp4$fid[sr] <- strtoi(fid)
+  
+
+}
+
+
+strikes <- data.frame(sid = seq(1,length(temp4$origin)) ,
+                      fid = temp4$fid ,
+                      damage = temp4$damage ,
+                      altitude = temp4$altitude_ft,
+                      conditions = temp4$sky_conditions,
+                      numbirds = temp4$wildlife_struck,
+                      impact = temp4$impact
+                      )
+
+
+
+
+
+dbWriteTable(mydb, "strikes", strikes, append = T,row.names=FALSE)
+
+
+```
+
+
+## QUES 8 :  Below is the query to answer the following question : 
+Create a SQL query against your database to find the top 10 states with the greatest number of bird strike incidents. You may either use a {sql} code chunk or an R function to execute the query. It must be a single query. Display the state and the number of incidents. Note that every row in the strikes table constitutes one "incident".
+
+
+```{sql incidentByState, connection = mydb }
+SELECT a.airportState AS STATE, COUNT(*) AS INCIDENTS
+FROM strikes AS s
+JOIN flights AS f ON s.fid = f.fid
+JOIN airports AS a ON f.origin = a.aid
+GROUP BY a.airportState
+ORDER BY INCIDENTS DESC
+LIMIT 10;
+
+```
+## QUES 9 :  Below is the query to answer the following question : 
+ Create a SQL query against your database to find the airlines that had an above average number bird strike incidents. You may either use a {sql} code chunk or an R function to execute the query. It must be a single query. To do this, find the number of bird strike incidents for each airline (remember that each row in the strikes table is a single bird strike incident). Then calculate the average across all airlines and from there find those airlines which had an above average number of bird strike incidents. List the names of the airlines and the number of incidents for each.
+
+```{sql incidentByAirlineGreaterthanAVG, connection = mydb}
+SELECT airline as airline , count(*) 
+FROM strikes
+JOIN flights ON strikes.fid = flights.fid
+GROUP BY airline
+HAVING COUNT(*) > (
+    SELECT AVG(incident_count)
+    FROM (
+        SELECT COUNT(*) AS incident_count
+        FROM strikes
+        JOIN flights ON strikes.fid = flights.fid
+        GROUP BY airline
+    ) AS avg_counts
+);
+
+
+```
+
+## QUES 10 :  Below is the query to answer the following question : 
+Create a SQL query against your database to find the (total) number of birds that struck aircraft by month. Save the result of the query in a dataframe. You may either use a {sql} code chunk or an R function to execute the query. It must be a single query. This query can help answer the question which month has more wildlife striking aircraft than normal. Display the first six rows of the dataframe.
+
+```{r birdStrikeByMonth, eval=TRUE, warning=F}
+sql_query <- "SELECT MONTH(f.date) AS month, SUM(s.numbirds) AS total_strikes
+FROM strikes AS s
+JOIN flights AS f ON s.fid = f.fid
+GROUP BY month
+ORDER BY month ASC;"
+
+birdStrikeByMonth <- dbGetQuery(mydb, sql_query)
+
+```
+
+
+
+## QUES 11 : Below is the plot to visualize bird strike by months
+
+Using month 1 - 12 in x axis representing the months. The data has some strikes for undefined months so left as empty.(hence first column in graph will have empty axis label)
+
+Y axis limit is normalised and increased to maxvalue of strikes * 1.2 to make data lables visible
+
+```{r plotBirdStrikes , eval=T , warning=F}
+names <- birdStrikeByMonth$month
+values <- birdStrikeByMonth$total_strikes
+
+# Create the column chart using barplot
+x <- barplot(values, names.arg = names, xlab = "Month", main = "Bird Strikes by Month", col = "yellow", ylim = c(0, max(values) * 1.2))
+
+
+title(main = "Bird Strikes by Month")
+title(xlab = "Month")
+title(ylab = "number of birds that struck aircraft")
+legend("topright", legend = "Total birds strikes", fill = "yellow", bty = "n")
+
+text(x , values+500, labels = as.character(values))
+
+
+
+```
+
+## QUES 12 : Below is the procedure created to insert a bird strike incident
+
+
+The inputs are considered to be airline , aircraft , date , airportState(origin) , heavy_flag , altitude, sky_condition ,  
+```{r creatingStoredProcedure , eval=T , warning=F}
+names <- birdStrikeByMonth$month
+values <- birdStrikeByMonth$total_strikes
+
+# Create the column chart using barplot
+x <- barplot(values, names.arg = names, xlab = "Month", main = "Bird Strikes by Month", col = "blue", ylim = c(0, max(values) * 1.2))
+
+
+title(main = "Bird Strikes by Month")
+title(xlab = "Month")
+title(ylab = "number of birds that struck aircraft")
+legend("topright", legend = "Total birds strikes", fill = "blue", bty = "n")
+
+text(x , values+500, labels = as.character(values))
+
+
+
+```
