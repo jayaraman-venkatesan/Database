@@ -1,0 +1,246 @@
+---
+title: "Assignment / Explore Query Planning and Indexing"
+date : "Summer Full 2023"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+## Setup
+
+Creating a connection variable to the SQlite databse to perform all the query operation
+
+
+```{r}
+library(RSQLite)
+
+#provide path to database folder
+
+  
+#provied path to database file
+
+dbfile = "sakila.db"
+
+dbcon <- dbConnect(RSQLite :: SQLite() , dbfile)
+
+tables <- dbListTables(dbcon)
+
+# Print the table names
+print(tables)
+
+
+```
+
+
+## Ques 1
+
+Below is the R chunk to perform deletion of all user defined indexes and query 
+to find the number of films per language
+```{r}
+
+# TODO : Delete user defined indexes
+
+drop_ind <- "DROP INDEX IF EXISTS TitleIndex"
+
+dbExecute(dbcon , drop_ind)
+
+query <- "SELECT l.name AS language_name , COUNT(*) AS Total_films
+FROM film as f
+JOIN language as l ON f.language_id = l.language_id
+GROUP BY l.name"
+
+
+df <- dbGetQuery(dbcon, query)
+
+print(df)
+
+
+```
+
+
+## Ques 2
+
+Below is the R chunk to find the query plan for above query
+```{r}
+
+
+query2  <- " EXPLAIN QUERY PLAN 
+SELECT l.name AS language_name , COUNT(*) AS Total_films
+FROM film as f
+JOIN language as l ON f.language_id = l.language_id
+GROUP BY l.name"
+
+
+result2 <- dbGetQuery(dbcon, query2)
+
+print(result2)
+
+```
+
+## Ques 3
+
+Below is the R chunk to find the title , category name and length of the film,
+titled "ZORRO ARK"
+```{r}
+
+query3  <- "SELECT f.title , f.length , c.name
+  FROM film as f
+  JOIN film_category as fc ON f.film_id = fc.film_id
+  JOIN category as c ON fc.category_id = c.category_id 
+  where f.title = 'ZORRO ARK'
+  "
+
+# calculating time taken here for the purpose of ques 8
+s_t <- system.time ({
+  result3 <- dbGetQuery(dbcon, query3)
+})
+
+
+
+print(s_t)
+
+
+
+print(result3)
+
+```
+
+## Ques 4
+
+Below is the R chunk to explain the query plan of above query
+```{r}
+
+
+
+query4  <- " EXPLAIN QUERY PLAN
+ SELECT f.title , f.length , c.name
+  FROM film as f
+  JOIN film_category as fc ON f.film_id = fc.film_id
+  JOIN category as c ON fc.category_id = c.category_id 
+  where f.title = 'ZORRO ARK'
+  "
+
+
+result4 <- dbGetQuery(dbcon, query4)
+
+print(result4)
+
+```
+
+## Ques 5
+
+Below is the R chunk to create index film table
+```{r}
+
+dbExecute(dbcon, "CREATE INDEX TitleIndex ON FILM (TITLE)")
+
+
+```
+
+## Ques 6
+
+Below is the R chunk to create index film table
+```{r}
+
+query6_plan  <- " EXPLAIN QUERY PLAN
+ SELECT f.title , f.length , c.name
+  FROM film as f
+  JOIN film_category as fc ON f.film_id = fc.film_id
+  JOIN category as c ON fc.category_id = c.category_id 
+  where f.title = 'ZORRO ARK'
+  "
+
+
+result6_plan <- dbGetQuery(dbcon, query6_plan)
+
+print(result6_plan)
+
+
+```
+
+## Ques 7
+
+Below is the R chunk to explain the index working :
+
+Difference : (6) searches the films table by the index of TitleIndex where as
+(4) uses primary key (rowid) to search
+
+How to identify : The search from index is specified by index name, here in case
+of (6) we have "SEARCH f USING INDEX TitleIndex (title=?)"
+
+Comments : where there is a search by title query having an index in title
+column of the table ensures the db engine improve the efficiency of data 
+retrieval operations by a sorted copy of the indexed column(s) and 
+corresponding data rows.
+
+
+## QUES 8
+We can see that after creating index the operation happened relatively fast,
+as it incorporated efficient search with sorted index rather than linear scan
+```{r}
+
+time <- system.time({
+  film_info <- dbGetQuery(dbcon, "
+    SELECT f.title, c.name AS category, f.length
+    FROM film f
+    JOIN film_category fc ON f.film_id = fc.film_id
+    JOIN category c ON fc.category_id = c.category_id
+    WHERE f.title = 'ZORRO ARK'
+  ")
+})
+
+
+
+print(time)
+  
+  
+```
+
+
+## QUES 9
+```{r}
+
+# as per readings using lower case because MySQL queries are not case-sensitive  
+# by default. If this works different it might be because of the internals of
+# engine
+
+query9 <-  "
+  SELECT f.title , f.length , l.name
+  FROM film as f
+  JOIN language as l ON f.language_id = l.language_id
+  where f.title LIKE '%gold%'
+  "
+
+result9 <- dbGetQuery(dbcon, query9)
+
+print(result9)
+  
+  
+```
+
+
+```{r}
+
+# as per readings using lower case because MySQL queries are not case-sensitive  
+# by default. If this works different it might be because of the internals of
+# engine
+
+query10 <-  "
+  EXPLAIN QUERY PLAN
+  SELECT f.title , f.length , l.name
+  FROM film as f
+  JOIN language as l ON f.language_id = l.language_id
+  where f.title LIKE '%gold%'
+  "
+
+result10 <- dbGetQuery(dbcon, query10)
+
+print(result10)
+
+  
+  
+```
+The query doesnt use indexes because :
+Indexes are not useful when pattern matching searches are performed with LIKE.
+And in the case of searches using LIKE theengines do linear scan anyways.
+
