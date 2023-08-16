@@ -1,0 +1,97 @@
+---
+title: "Analyze datawarehouse"
+author: "Venkatesan Jayaraman , Dhanooram Nagaraj"
+date: "2023-08-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Importing needed libraries
+
+
+```{r}
+library(DBI)
+
+library(RSQLite)
+library(dplyr)
+library(DBI)
+library(dplyr)
+library(scales) 
+library(ggplot2)
+```
+
+
+## Connecting to datawarehouse
+```{r}
+db_user     <- 'admin'
+db_password <- 'Dhanoo30$'
+db_name     <- 'database1'
+db_host     <- 'database1.ct2zux9jbsp4.us-east-2.rds.amazonaws.com'
+db_port     <- 3306
+
+## Connect to remote server database
+dbcon <-  dbConnect(RMySQL::MySQL(),
+                              user = db_user,
+                              password = db_password,
+                              dbname = db_name,
+                              host = db_host,
+                              port = db_port)
+
+if (dbIsValid(dbcon)) {
+  cat("Connection to MySQL database successful!\n")
+} else {
+  cat("Failed to connect to the MySQL database.\n")
+}
+```
+
+
+## Top five sales reps with the most sales broken down by year.
+```{r,warning=FALSE}
+unique_years <- dbGetQuery(dbcon, "SELECT DISTINCT year_num FROM DateTimeDim")
+for (year in unique_years$year_num) {
+    
+  query <- sprintf("
+        SELECT RepName,SUM(total) AS total_sales
+        FROM  rep_facts JOIN
+        DateTimeDim ON rep_facts.datetimedim_key = DateTimeDim.datetimedim_key
+        WHERE   year_num = %d
+        GROUP BY RepName
+        ORDER BY total_sales DESC
+        LIMIT 5
+    ", year)
+  top_reps <- dbGetQuery(dbcon, query)
+   top_reps$total_sales <- as.numeric(top_reps$total_sales)
+bb <- ggplot(top_reps, aes(x = reorder(RepName, -total_sales), y = total_sales, fill = factor(year))) +
+        geom_bar(stat = "identity", position = "dodge") +
+        labs(title = paste("Top 5 Sales Representatives in", year),
+             x = "Sales Representative",
+             y = "Total Sales") +
+        theme_minimal() +
+        theme(legend.position = "none")
+    
+    # Add dollar formatted labels inside bars using annotate
+    bb <- bb + 
+        annotate("text", x = rep(top_reps$RepName, each = 1), y = top_reps$total_sales,
+                 label = dollar(top_reps$total_sales), vjust = -0.5, size = 3)
+  print(bb)
+}
+```
+
+## Total sold per month.
+```{r,warning=FALSE}
+query_result <- dbGetQuery(dbcon, "SELECT d.year_num,d.month_of_year,
+    SUM(p.total) AS total_sold FROM  product_facts p
+   JOIN DateTimeDim d ON p.datetimedim_key = d.datetimedim_key
+GROUP BY d.year_num, d.month_of_year ORDER BY d.year_num, d.month_of_year;")
+
+ggplot(query_result, aes(x = month_of_year, y = total_sold, group = year_num, color = year_num)) +
+  geom_line() +
+  labs(x = "Month", y = "Total Sold in Dollars", title = "Total Sold per Month") +
+  scale_x_continuous(breaks = 1:12, labels = month.abb) 
+
+```
+

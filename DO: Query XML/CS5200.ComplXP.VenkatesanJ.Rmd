@@ -1,0 +1,62 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+## Question 4
+Load the XML with the DTD into R using validation.
+```{r}
+library("XML")
+
+xml_data <- xmlParse("CustomersAndOrders.xml",validate = T)
+
+```
+
+## Question 5
+Execute an XPath expression that returns the names of all customers that do not live in "MA"
+```{r}
+cust_name <- xpathApply(xml_data,"/Root/Customers/Customer[FullAddress/Region 
+                        != 'MA']/CompanyName",xmlValue)
+
+customer_names <- unlist(cust_name)
+
+print(customer_names)
+```
+
+## Question 6
+Using the result returned in (5), count how many customers there are.
+```{r}
+print(length(customer_names))
+```
+
+## Question 7
+Using a combination of R and XPath, calculate the total amount paid for freight for all orders placed by customer with ID "GREAL".
+```{r}
+freight_values <- as.numeric(xpathApply(xml_data, "/Root/Orders
+                                        /Order[CustomerID = 'GREAL']
+                                        /ShipInfo/Freight" , xmlValue))
+
+
+freight_values <- unlist(freight_values)
+
+print(freight_values)
+
+
+total_freight_amount <- sum(freight_values)
+
+print(total_freight_amount)
+```
+
+## Question 8
+Using a combination of R and XPath, calculate the average amount paid for freight for all orders shipped to the USA.
+```{r}
+a <- as.numeric( xpathApply(xml_data,"/Root/Orders
+                            /Order[ShipInfo/ShipCountry='USA']
+                            /ShipInfo/Freight",xmlValue) )
+
+a <- unlist(a)
+
+print(mean(a))
+
+```
+

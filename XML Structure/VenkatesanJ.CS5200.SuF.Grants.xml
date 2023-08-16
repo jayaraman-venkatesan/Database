@@ -1,0 +1,75 @@
+<!DOCTYPE grants [
+  <!ELEMENT grants (Grant*,Researcher+,Content*)>
+  <!ELEMENT Grant
+      (gdate)>
+  <!ATTLIST Grant gid ID #REQUIRED>
+  <!ATTLIST Grant type 
+     (industry|government) "industry">
+   <!ELEMENT gdate (#PCDATA)>
+   <!ELEMENT Researcher
+      (name,affiliation)>
+  <!ATTLIST Researcher rid ID #REQUIRED>
+  <!ELEMENT name (#PCDATA)>
+  <!ELEMENT affiliation (#PCDATA)>
+ <!ELEMENT Content EMPTY>
+ <!ATTLIST Content rid IDREF #REQUIRED>
+ <!ATTLIST Content gid IDREF #REQUIRED>
+]>
+
+
+
+<grants>
+  
+  <Grant gid="101" type="industry">
+    <gdate>12/01/2023</gdate>
+  </Grant>
+  
+  <Grant gid="102" type="government">
+    <gdate>12/01/2023</gdate>
+  </Grant>
+  
+  <Grant gid="103" type="industry">
+    <gdate>11/01/2023</gdate>
+  </Grant>
+  
+  <Grant gid="104" type="government">
+    <gdate>10/01/2023</gdate>
+  </Grant>
+  
+  <Grant gid="105" type="industry">
+    <gdate>09/01/2023</gdate>
+  </Grant>
+  
+  <Researcher rid="001">
+    <name>Magnus Carlsen</name>
+    <affiliation>greatest of all time</affiliation>
+  </Researcher>
+  
+  <Researcher rid="002">
+    <name>Barney Stinson</name>
+    <affiliation>Goliath National Bank</affiliation>
+  </Researcher>
+  
+  <Researcher rid="003">
+    <name>Chandler Bing</name>
+    <affiliation>statistical analysis and data reconfiguration</affiliation>
+  </Researcher>
+  
+  <Researcher rid="004">
+    <name>Sheldon Cooper</name>
+    <affiliation>California Institute of Technology (Caltech)</affiliation>
+  </Researcher>
+
+  <Content gid="101" rid="001" />
+  <Content gid="101" rid="002" />
+  
+  <Content gid="102" rid="001" />
+  <Content gid="102" rid="003" />
+  
+  <Content gid="103" rid="002" />
+  <Content gid="103" rid="003" />
+  
+  <Content gid="104" rid="003" />
+  <Content gid="104" rid="004" />
+  
+</grants>
